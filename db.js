@@ -37,7 +37,7 @@ class VocabularyDB {
     }
 
     // Neues Wort hinzufügen
-    async addWord(german, spanish, audioBlob) {
+    async addWord(german, spanish, audioBlob, tags = []) {
         if (!this.db) await this.init();
 
         return new Promise((resolve, reject) => {
@@ -48,6 +48,7 @@ class VocabularyDB {
                 german: german.trim(),
                 spanish: spanish.trim(),
                 audio: audioBlob,
+                tags: tags, // Array von Tag-Strings
                 timestamp: Date.now()
             };
 
@@ -56,6 +57,26 @@ class VocabularyDB {
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
         });
+    }
+
+    // Wörter nach Tag filtern
+    async getWordsByTag(tag) {
+        const allWords = await this.getAllWords();
+        return allWords.filter(word => word.tags && word.tags.includes(tag));
+    }
+
+    // Alle verwendeten Tags abrufen
+    async getAllTags() {
+        const allWords = await this.getAllWords();
+        const tagsSet = new Set();
+        
+        allWords.forEach(word => {
+            if (word.tags) {
+                word.tags.forEach(tag => tagsSet.add(tag));
+            }
+        });
+        
+        return Array.from(tagsSet).sort();
     }
 
     // Alle Wörter abrufen

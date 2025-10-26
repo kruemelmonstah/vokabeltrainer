@@ -41,6 +41,13 @@
                 </div>
 
                 <div class="form-group">
+                    <label>Kategorien / Tags:</label>
+                    <input type="text" id="tags-input" placeholder="z.B. Tiere, Haustiere (durch Komma trennen)">
+                    <div class="tags-help">💡 Tipp: Wörter können mehrere Tags haben</div>
+                    <div id="existing-tags" class="existing-tags"></div>
+                </div>
+
+                <div class="form-group">
                     <label>Spanische Aussprache:</label>
                     
                     <!-- Audio Upload -->
@@ -85,31 +92,68 @@
                     Noch keine Wörter vorhanden. Füge zuerst Wörter hinzu!
                 </div>
                 
-                <div id="practice-content" style="display: none;">
-                    <div class="practice-stats">
-                        <span id="practice-counter">0 / 0</span>
+                <!-- Kategorie-Auswahl -->
+                <div id="category-selection" style="display: none;">
+                    <h2>Wähle eine Kategorie:</h2>
+                    <div id="category-list" class="category-grid"></div>
+                    
+                    <div class="divider"><span>ODER</span></div>
+                    
+                    <button id="practice-all-btn" class="btn btn-primary btn-large">
+                        🎯 Alle Wörter üben
+                    </button>
+                </div>
+
+                <!-- Playlist-Modus -->
+                <div id="playlist-mode" style="display: none;">
+                    <div class="playlist-header">
+                        <button id="back-to-categories-btn" class="btn btn-secondary">
+                            ← Zurück
+                        </button>
+                        <div class="playlist-title" id="playlist-title">Alle Wörter</div>
                     </div>
 
-                    <div class="practice-card">
-                        <h2>Was heißt auf Spanisch:</h2>
-                        <div class="german-word-display" id="practice-german"></div>
-                        
-                        <button id="show-answer-btn" class="btn btn-primary btn-large">
-                            Antwort zeigen
-                        </button>
-
-                        <div id="answer-section" style="display: none;">
-                            <div class="spanish-word-display" id="practice-spanish"></div>
-                            
-                            <button id="play-audio-btn" class="btn btn-secondary">
-                                🔊 Aussprache anhören
-                            </button>
-
-                            <div class="practice-buttons">
-                                <button id="next-word-btn" class="btn btn-primary">
-                                    Nächstes Wort →
-                                </button>
+                    <div class="playlist-controls">
+                        <div class="playlist-progress">
+                            <div id="playlist-counter">1 / 10</div>
+                            <div class="progress-bar">
+                                <div id="progress-fill" class="progress-fill"></div>
                             </div>
+                        </div>
+
+                        <div class="current-word-display">
+                            <div class="word-german-large" id="playlist-german">Hund</div>
+                            <div class="word-spanish-large" id="playlist-spanish">perro</div>
+                        </div>
+
+                        <div class="playback-controls">
+                            <button id="prev-word-btn" class="btn-control">
+                                ⏮️
+                            </button>
+                            <button id="play-pause-btn" class="btn-control btn-play">
+                                ▶️
+                            </button>
+                            <button id="next-playlist-btn" class="btn-control">
+                                ⏭️
+                            </button>
+                        </div>
+
+                        <div class="playlist-settings">
+                            <label class="setting-item">
+                                <span>Pause zwischen Wörtern:</span>
+                                <select id="pause-duration">
+                                    <option value="0">Keine</option>
+                                    <option value="2" selected>2 Sekunden</option>
+                                    <option value="3">3 Sekunden</option>
+                                    <option value="5">5 Sekunden</option>
+                                    <option value="10">10 Sekunden</option>
+                                </select>
+                            </label>
+                            
+                            <label class="setting-item">
+                                <input type="checkbox" id="repeat-mode">
+                                <span>🔁 Wiederholen</span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -125,8 +169,26 @@
                         🗑️ Alle löschen
                     </button>
                 </div>
+
+                <!-- Ansicht umschalten -->
+                <div class="view-toggle">
+                    <button class="view-btn active" data-view="tree">
+                        🌳 Ordner
+                    </button>
+                    <button class="view-btn" data-view="flat">
+                        📄 Liste
+                    </button>
+                </div>
                 
-                <div id="word-list"></div>
+                <!-- Baum-Ansicht -->
+                <div id="tree-view" class="tree-view">
+                    <div id="category-tree"></div>
+                </div>
+
+                <!-- Flache Liste (ausgeblendet) -->
+                <div id="flat-view" class="flat-view" style="display: none;">
+                    <div id="word-list"></div>
+                </div>
             </div>
         </div>
     </div>

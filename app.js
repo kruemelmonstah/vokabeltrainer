@@ -2,7 +2,6 @@
 let mediaRecorder;
 let audioChunks = [];
 let recordedAudio = null;
-let currentPracticeWord = null;
 
 // DOM Elemente
 const tabs = {
@@ -40,10 +39,20 @@ function setupEventListeners() {
     // Wort speichern
     document.getElementById('save-word-btn').addEventListener('click', saveWord);
 
-    // Practice
-    document.getElementById('show-answer-btn').addEventListener('click', showAnswer);
-    document.getElementById('next-word-btn').addEventListener('click', nextWord);
-    document.getElementById('play-audio-btn').addEventListener('click', playCurrentWordAudio);
+    // Tags - Vorhandene Tags anzeigen beim Focus
+    document.getElementById('tags-input').addEventListener('focus', showExistingTags);
+
+    // View Toggle (Baum vs. Liste)
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchView(btn.dataset.view));
+    });
+
+    // Playlist Controls
+    document.getElementById('practice-all-btn').addEventListener('click', () => startPlaylist(null));
+    document.getElementById('play-pause-btn').addEventListener('click', togglePlayPause);
+    document.getElementById('prev-word-btn').addEventListener('click', previousWord);
+    document.getElementById('next-playlist-btn').addEventListener('click', nextWord);
+    document.getElementById('back-to-categories-btn').addEventListener('click', backToCategories);
 
     // Liste
     document.getElementById('delete-all-btn').addEventListener('click', deleteAllWords);
@@ -191,6 +200,7 @@ function playPreview() {
 async function saveWord() {
     const germanWord = document.getElementById('german-word').value.trim();
     const spanishWord = document.getElementById('spanish-word').value.trim();
+    const tagsInput = document.getElementById('tags-input').value.trim();
 
     // Validierung
     if (!germanWord || !spanishWord) {
@@ -203,9 +213,15 @@ async function saveWord() {
         return;
     }
 
+    // Tags verarbeiten
+    const tags = tagsInput
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+
     try {
         // Wort in Datenbank speichern
-        await vocabularyDB.addWord(germanWord, spanishWord, recordedAudio);
+        await vocabularyDB.addWord(germanWord, spanishWord, recordedAudio, tags);
 
         // Erfolgs-Feedback
         showSuccessMessage('Wort erfolgreich gespeichert! ✓');
@@ -213,6 +229,7 @@ async function saveWord() {
         // Formular zurücksetzen
         document.getElementById('german-word').value = '';
         document.getElementById('spanish-word').value = '';
+        document.getElementById('tags-input').value = '';
         document.getElementById('audio-file-input').value = '';
         recordedAudio = null;
         document.getElementById('play-preview-btn').disabled = true;
@@ -227,6 +244,39 @@ async function saveWord() {
         console.error('Fehler beim Speichern:', error);
         alert('Fehler beim Speichern des Wortes.');
     }
+}
+
+// Vorhandene Tags anzeigen
+async function showExistingTags() {
+    const existingTagsDiv = document.getElementById('existing-tags');
+    const tags = await vocabularyDB.getAllTags();
+    
+    if (tags.length === 0) {
+        existingTagsDiv.innerHTML = '';
+        return;
+    }
+    
+    existingTagsDiv.innerHTML = tags.map(tag => 
+        `<span class="tag-chip" onclick="addTagToInput('${escapeHtml(tag)}')">${escapeHtml(tag)}</span>`
+    ).join('');
+}
+
+function addTagToInput(tag) {
+    const input = document.getElementById('tags-input');
+    const currentValue = input.value.trim();
+    
+    if (currentValue) {
+        // Füge Komma hinzu wenn schon Tags vorhanden
+        if (!currentValue.endsWith(',')) {
+            input.value = currentValue + ', ' + tag;
+        } else {
+            input.value = currentValue + ' ' + tag;
+        }
+    } else {
+        input.value = tag;
+    }
+    
+    input.focus();
 }
 
 function showSuccessMessage(message) {
@@ -245,40 +295,146 @@ function showSuccessMessage(message) {
 
 // === WORTLISTE ===
 
-async function updateWordList() {
-    const wordList = document.getElementById('word-list');
-    const wordCount = document.getElementById('word-count');
-    
-    wordList.innerHTML = '';
+let currentView = 'tree';
 
+function switchView(view) {
+    currentView = view;
+    
+    // Buttons aktualisieren
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+    });
+    
+    // Views umschalten
+    if (view === 'tree') {
+        document.getElementById('tree-view').style.display = 'block';
+        document.getElementById('flat-view').style.display = 'none';
+    } else {
+        document.getElementById('tree-view').style.display = 'none';
+        document.getElementById('flat-view').style.display = 'block';
+    }
+    
+    updateWordList();
+}
+
+async function updateWordList() {
+    const wordCount = document.getElementById('word-count');
     const words = await vocabularyDB.getAllWords();
     wordCount.textContent = words.length;
+    
+    if (currentView === 'tree') {
+        await updateTreeView(words);
+    } else {
+        await updateFlatView(words);
+    }
+}
 
+async function updateTreeView(words) {
+    const categoryTree = document.getElementById('category-tree');
+    categoryTree.innerHTML = '';
+    
+    // Gruppiere Wörter nach Tags
+    const categorizedWords = {};
+    const uncategorized = [];
+    
+    words.forEach(word => {
+        if (word.tags && word.tags.length > 0) {
+            word.tags.forEach(tag => {
+                if (!categorizedWords[tag]) {
+                    categorizedWords[tag] = [];
+                }
+                categorizedWords[tag].push(word);
+            });
+        } else {
+            uncategorized.push(word);
+        }
+    });
+    
+    // Sortiere Kategorien alphabetisch
+    const sortedCategories = Object.keys(categorizedWords).sort();
+    
+    // Erstelle Ordner für jede Kategorie
+    sortedCategories.forEach(category => {
+        const folder = createCategoryFolder(category, categorizedWords[category]);
+        categoryTree.appendChild(folder);
+    });
+    
+    // Unkategorisierte Wörter
+    if (uncategorized.length > 0) {
+        const folder = createCategoryFolder('📝 Ohne Kategorie', uncategorized);
+        categoryTree.appendChild(folder);
+    }
+    
+    if (words.length === 0) {
+        categoryTree.innerHTML = '<div class="info-message">Noch keine Wörter gespeichert.</div>';
+    }
+}
+
+function createCategoryFolder(categoryName, words) {
+    const folder = document.createElement('div');
+    folder.className = 'category-folder';
+    
+    folder.innerHTML = `
+        <div class="folder-header">
+            <span class="folder-icon">▶</span>
+            <span class="folder-name">${escapeHtml(categoryName)}</span>
+            <span class="folder-count">${words.length}</span>
+        </div>
+        <div class="folder-content">
+            ${words.map(word => createWordListItemHTML(word)).join('')}
+        </div>
+    `;
+    
+    // Toggle Ordner
+    const header = folder.querySelector('.folder-header');
+    const content = folder.querySelector('.folder-content');
+    
+    header.addEventListener('click', () => {
+        header.classList.toggle('expanded');
+        content.classList.toggle('expanded');
+    });
+    
+    return folder;
+}
+
+async function updateFlatView(words) {
+    const wordList = document.getElementById('word-list');
+    wordList.innerHTML = '';
+    
     words.forEach(word => {
         const wordItem = createWordListItem(word);
         wordList.appendChild(wordItem);
     });
 }
 
+function createWordListItemHTML(word) {
+    const tags = word.tags && word.tags.length > 0 
+        ? `<div class="word-tags">${word.tags.map(tag => `<span class="tag-badge">${escapeHtml(tag)}</span>`).join('')}</div>`
+        : '';
+    
+    return `
+        <div class="word-item">
+            <div class="word-content">
+                <div class="word-german">${escapeHtml(word.german)}</div>
+                <div class="word-spanish">${escapeHtml(word.spanish)}</div>
+                ${tags}
+            </div>
+            <div class="word-actions">
+                <button class="btn-icon play" onclick="playWordAudio(${word.id})">
+                    🔊
+                </button>
+                <button class="btn-icon delete" onclick="deleteWord(${word.id})">
+                    🗑️
+                </button>
+            </div>
+        </div>
+    `;
+}
+
 function createWordListItem(word) {
     const div = document.createElement('div');
     div.className = 'word-item';
-
-    div.innerHTML = `
-        <div class="word-content">
-            <div class="word-german">${escapeHtml(word.german)}</div>
-            <div class="word-spanish">${escapeHtml(word.spanish)}</div>
-        </div>
-        <div class="word-actions">
-            <button class="btn-icon play" onclick="playWordAudio(${word.id})">
-                🔊
-            </button>
-            <button class="btn-icon delete" onclick="deleteWord(${word.id})">
-                🗑️
-            </button>
-        </div>
-    `;
-
+    div.innerHTML = createWordListItemHTML(word);
     return div;
 }
 
@@ -320,55 +476,239 @@ async function deleteAllWords() {
     }
 }
 
-// === ÜBEN ===
+// === ÜBEN / PLAYLIST ===
+
+let playlistWords = [];
+let currentWordIndex = 0;
+let isPlaying = false;
+let playlistAudio = null;
+let playlistTimeout = null;
 
 async function updatePracticeView() {
     const count = await vocabularyDB.getWordCount();
     
     const noWordsMsg = document.getElementById('no-words-message');
-    const practiceContent = document.getElementById('practice-content');
+    const categorySelection = document.getElementById('category-selection');
 
     if (count === 0) {
         noWordsMsg.style.display = 'block';
-        practiceContent.style.display = 'none';
+        categorySelection.style.display = 'none';
     } else {
         noWordsMsg.style.display = 'none';
-        practiceContent.style.display = 'block';
-        await loadNextPracticeWord();
+        categorySelection.style.display = 'block';
+        await loadCategories();
     }
 }
 
-async function loadNextPracticeWord() {
-    currentPracticeWord = await vocabularyDB.getRandomWord();
+async function loadCategories() {
+    const categoryList = document.getElementById('category-list');
+    const tags = await vocabularyDB.getAllTags();
     
-    if (currentPracticeWord) {
-        document.getElementById('practice-german').textContent = currentPracticeWord.german;
-        document.getElementById('practice-spanish').textContent = currentPracticeWord.spanish;
-        
-        // Antwort verbergen
-        document.getElementById('show-answer-btn').style.display = 'block';
-        document.getElementById('answer-section').style.display = 'none';
-
-        // Counter aktualisieren
-        const count = await vocabularyDB.getWordCount();
-        document.getElementById('practice-counter').textContent = `1 / ${count}`;
+    categoryList.innerHTML = '';
+    
+    for (const tag of tags) {
+        const words = await vocabularyDB.getWordsByTag(tag);
+        const card = document.createElement('div');
+        card.className = 'category-card';
+        card.innerHTML = `
+            <div class="category-icon">📁</div>
+            <div class="category-name">${escapeHtml(tag)}</div>
+            <div class="category-word-count">${words.length} Wörter</div>
+        `;
+        card.addEventListener('click', () => startPlaylist(tag));
+        categoryList.appendChild(card);
     }
 }
 
-function showAnswer() {
-    document.getElementById('show-answer-btn').style.display = 'none';
-    document.getElementById('answer-section').style.display = 'block';
+async function startPlaylist(tag) {
+    // Lade Wörter
+    if (tag) {
+        playlistWords = await vocabularyDB.getWordsByTag(tag);
+        document.getElementById('playlist-title').textContent = tag;
+    } else {
+        playlistWords = await vocabularyDB.getAllWords();
+        document.getElementById('playlist-title').textContent = 'Alle Wörter';
+    }
+    
+    if (playlistWords.length === 0) {
+        alert('Keine Wörter in dieser Kategorie!');
+        return;
+    }
+    
+    // Mische Wörter
+    playlistWords = shuffleArray(playlistWords);
+    
+    currentWordIndex = 0;
+    isPlaying = false;
+    
+    // UI umschalten
+    document.getElementById('category-selection').style.display = 'none';
+    document.getElementById('playlist-mode').style.display = 'block';
+    
+    // Erstes Wort laden
+    loadPlaylistWord();
+}
+
+function loadPlaylistWord() {
+    if (currentWordIndex >= playlistWords.length) {
+        // Ende der Playlist
+        const repeatMode = document.getElementById('repeat-mode').checked;
+        
+        if (repeatMode) {
+            // Von vorne beginnen
+            currentWordIndex = 0;
+            playlistWords = shuffleArray(playlistWords);
+            loadPlaylistWord();
+            return;
+        } else {
+            // Zurück zur Kategorie-Auswahl
+            stopPlaylist();
+            alert('Playlist beendet! 🎉');
+            backToCategories();
+            return;
+        }
+    }
+    
+    const word = playlistWords[currentWordIndex];
+    
+    // UI aktualisieren
+    document.getElementById('playlist-german').textContent = word.german;
+    document.getElementById('playlist-spanish').textContent = word.spanish;
+    document.getElementById('playlist-counter').textContent = 
+        `${currentWordIndex + 1} / ${playlistWords.length}`;
+    
+    // Progress Bar
+    const progress = ((currentWordIndex + 1) / playlistWords.length) * 100;
+    document.getElementById('progress-fill').style.width = `${progress}%`;
+    
+    // Wenn Autoplay aktiv, Audio abspielen
+    if (isPlaying) {
+        playCurrentAudio();
+    }
+}
+
+function playCurrentAudio() {
+    const word = playlistWords[currentWordIndex];
+    
+    if (word && word.audio) {
+        // Vorheriges Audio stoppen
+        if (playlistAudio) {
+            playlistAudio.pause();
+            playlistAudio = null;
+        }
+        
+        // Neues Audio erstellen und abspielen
+        playlistAudio = new Audio(URL.createObjectURL(word.audio));
+        
+        playlistAudio.onended = () => {
+            // Nach Audio-Ende: Pause, dann nächstes Wort
+            const pauseDuration = parseInt(document.getElementById('pause-duration').value) * 1000;
+            
+            if (pauseDuration > 0 && isPlaying) {
+                playlistTimeout = setTimeout(() => {
+                    nextWord();
+                }, pauseDuration);
+            } else if (isPlaying) {
+                nextWord();
+            }
+        };
+        
+        playlistAudio.play().catch(err => {
+            console.error('Audio-Fehler:', err);
+            // Nächstes Wort bei Fehler
+            if (isPlaying) {
+                setTimeout(() => nextWord(), 500);
+            }
+        });
+    }
+}
+
+function togglePlayPause() {
+    const btn = document.getElementById('play-pause-btn');
+    
+    if (isPlaying) {
+        // Pause
+        isPlaying = false;
+        btn.textContent = '▶️';
+        btn.classList.remove('playing');
+        
+        // Audio stoppen
+        if (playlistAudio) {
+            playlistAudio.pause();
+        }
+        
+        // Timeout abbrechen
+        if (playlistTimeout) {
+            clearTimeout(playlistTimeout);
+            playlistTimeout = null;
+        }
+    } else {
+        // Play
+        isPlaying = true;
+        btn.textContent = '⏸️';
+        btn.classList.add('playing');
+        
+        // Audio abspielen
+        playCurrentAudio();
+    }
+}
+
+function previousWord() {
+    stopCurrentPlayback();
+    
+    if (currentWordIndex > 0) {
+        currentWordIndex--;
+    } else {
+        currentWordIndex = playlistWords.length - 1;
+    }
+    
+    loadPlaylistWord();
 }
 
 function nextWord() {
-    loadNextPracticeWord();
+    stopCurrentPlayback();
+    currentWordIndex++;
+    loadPlaylistWord();
 }
 
-function playCurrentWordAudio() {
-    if (currentPracticeWord && currentPracticeWord.audio) {
-        const audio = new Audio(URL.createObjectURL(currentPracticeWord.audio));
-        audio.play();
+function stopCurrentPlayback() {
+    if (playlistAudio) {
+        playlistAudio.pause();
+        playlistAudio = null;
     }
+    
+    if (playlistTimeout) {
+        clearTimeout(playlistTimeout);
+        playlistTimeout = null;
+    }
+}
+
+function stopPlaylist() {
+    isPlaying = false;
+    stopCurrentPlayback();
+    
+    const btn = document.getElementById('play-pause-btn');
+    btn.textContent = '▶️';
+    btn.classList.remove('playing');
+}
+
+function backToCategories() {
+    stopPlaylist();
+    
+    document.getElementById('playlist-mode').style.display = 'none';
+    document.getElementById('category-selection').style.display = 'block';
+    
+    loadCategories();
+}
+
+// Hilfsfunktion: Array mischen
+function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
 }
 
 // === HILFSFUNKTIONEN ===
@@ -382,3 +722,4 @@ function escapeHtml(text) {
 // Globale Funktionen für onclick-Handler
 window.playWordAudio = playWordAudio;
 window.deleteWord = deleteWord;
+window.addTagToInput = addTagToInput;
