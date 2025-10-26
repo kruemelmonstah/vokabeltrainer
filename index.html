@@ -42,6 +42,22 @@
 
                 <div class="form-group">
                     <label>Spanische Aussprache:</label>
+                    
+                    <!-- Audio Upload -->
+                    <div class="audio-upload-section">
+                        <input type="file" id="audio-file-input" accept="audio/*" style="display: none;">
+                        <button id="upload-audio-btn" class="btn btn-primary">
+                            📁 Audio-Datei hochladen
+                        </button>
+                        <div id="upload-status"></div>
+                    </div>
+
+                    <!-- ODER Trennlinie -->
+                    <div class="divider">
+                        <span>ODER</span>
+                    </div>
+
+                    <!-- Audio Aufnahme -->
                     <div class="audio-controls">
                         <button id="record-btn" class="btn btn-record">
                             🎤 Aufnehmen

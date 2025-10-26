@@ -31,6 +31,12 @@ function setupEventListeners() {
     document.getElementById('stop-btn').addEventListener('click', stopRecording);
     document.getElementById('play-preview-btn').addEventListener('click', playPreview);
 
+    // Audio Upload
+    document.getElementById('upload-audio-btn').addEventListener('click', () => {
+        document.getElementById('audio-file-input').click();
+    });
+    document.getElementById('audio-file-input').addEventListener('change', handleAudioUpload);
+
     // Wort speichern
     document.getElementById('save-word-btn').addEventListener('click', saveWord);
 
@@ -70,10 +76,58 @@ function switchTab(tabName) {
 
 // === AUDIO AUFNAHME ===
 
+// Audio-Datei hochladen
+function handleAudioUpload(event) {
+    const file = event.target.files[0];
+    
+    if (!file) return;
+
+    // Prüfe ob es eine Audio-Datei ist
+    if (!file.type.startsWith('audio/')) {
+        alert('Bitte wähle eine Audio-Datei aus!');
+        return;
+    }
+
+    // Konvertiere zu Blob und speichere
+    recordedAudio = file;
+
+    // UI aktualisieren
+    document.getElementById('upload-status').textContent = `✓ ${file.name} hochgeladen`;
+    document.getElementById('upload-status').classList.add('success');
+    document.getElementById('play-preview-btn').disabled = false;
+    
+    // Recording Status zurücksetzen
+    document.getElementById('recording-status').textContent = '';
+    document.getElementById('recording-status').classList.remove('recording');
+}
+
 async function startRecording() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        // Für iOS: Explizit Audio-Constraints setzen
+        const constraints = {
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100
+            }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        // Für iOS: Versuche verschiedene MIME-Types
+        let options = { mimeType: 'audio/webm' };
+        
+        // Fallback für iOS - versuche MP4
+        if (!MediaRecorder.isTypeSupported('audio/webm')) {
+            if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                options = { mimeType: 'audio/mp4' };
+            } else {
+                // Kein MIME-Type angeben, Browser wählt automatisch
+                options = {};
+            }
+        }
+
+        mediaRecorder = new MediaRecorder(stream, options);
         audioChunks = [];
 
         mediaRecorder.ondataavailable = (event) => {
@@ -81,13 +135,19 @@ async function startRecording() {
         };
 
         mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            // Erstelle Blob mit dem aufgenommenen Format
+            const mimeType = mediaRecorder.mimeType || 'audio/webm';
+            const audioBlob = new Blob(audioChunks, { type: mimeType });
             recordedAudio = audioBlob;
             
             // UI aktualisieren
             document.getElementById('play-preview-btn').disabled = false;
             document.getElementById('recording-status').textContent = '✓ Aufnahme gespeichert';
             document.getElementById('recording-status').classList.remove('recording');
+            
+            // Upload Status zurücksetzen
+            document.getElementById('upload-status').textContent = '';
+            document.getElementById('upload-status').classList.remove('success');
             
             // Stream stoppen
             stream.getTracks().forEach(track => track.stop());
@@ -104,7 +164,7 @@ async function startRecording() {
 
     } catch (error) {
         console.error('Fehler bei Aufnahme:', error);
-        alert('Fehler beim Zugriff auf das Mikrofon. Bitte Berechtigungen prüfen.');
+        alert('Fehler beim Zugriff auf das Mikrofon. Bitte Berechtigungen prüfen oder eine Audio-Datei hochladen.');
     }
 }
 
@@ -139,7 +199,7 @@ async function saveWord() {
     }
 
     if (!recordedAudio) {
-        alert('Bitte eine Audio-Aufnahme machen!');
+        alert('Bitte eine Audio-Datei hochladen oder eine Aufnahme machen!');
         return;
     }
 
@@ -153,9 +213,12 @@ async function saveWord() {
         // Formular zurücksetzen
         document.getElementById('german-word').value = '';
         document.getElementById('spanish-word').value = '';
+        document.getElementById('audio-file-input').value = '';
         recordedAudio = null;
         document.getElementById('play-preview-btn').disabled = true;
         document.getElementById('recording-status').textContent = '';
+        document.getElementById('upload-status').textContent = '';
+        document.getElementById('upload-status').classList.remove('success');
 
         // Liste aktualisieren
         await updateWordList();
