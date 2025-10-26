@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Vokabeltrainer">
+    <title>Deutsch-Spanisch Vokabeltrainer</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🇩🇪 🇪🇸 Vokabeltrainer</h1>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="add">+ Hinzufügen</button>
+            <button class="tab-btn" data-tab="practice">🎯 Üben</button>
+            <button class="tab-btn" data-tab="list">📚 Liste</button>
+        </nav>
+
+        <!-- Tab: Neues Wort hinzufügen -->
+        <div class="tab-content active" id="add-tab">
+            <div class="card">
+                <h2>Neues Wort hinzufügen</h2>
+                
+                <div class="form-group">
+                    <label>Deutsch:</label>
+                    <input type="text" id="german-word" placeholder="z.B. Hund">
+                </div>
+
+                <div class="form-group">
+                    <label>Spanisch:</label>
+                    <input type="text" id="spanish-word" placeholder="z.B. perro">
+                </div>
+
+                <div class="form-group">
+                    <label>Spanische Aussprache:</label>
+                    <div class="audio-controls">
+                        <button id="record-btn" class="btn btn-record">
+                            🎤 Aufnehmen
+                        </button>
+                        <button id="stop-btn" class="btn btn-secondary" disabled>
+                            ⏹️ Stop
+                        </button>
+                        <button id="play-preview-btn" class="btn btn-secondary" disabled>
+                            ▶️ Anhören
+                        </button>
+                    </div>
+                    <div id="recording-status"></div>
+                </div>
+
+                <button id="save-word-btn" class="btn btn-primary btn-large">
+                    💾 Wort speichern
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab: Üben -->
+        <div class="tab-content" id="practice-tab">
+            <div class="card">
+                <div id="no-words-message" class="info-message">
+                    Noch keine Wörter vorhanden. Füge zuerst Wörter hinzu!
+                </div>
+                
+                <div id="practice-content" style="display: none;">
+                    <div class="practice-stats">
+                        <span id="practice-counter">0 / 0</span>
+                    </div>
+
+                    <div class="practice-card">
+                        <h2>Was heißt auf Spanisch:</h2>
+                        <div class="german-word-display" id="practice-german"></div>
+                        
+                        <button id="show-answer-btn" class="btn btn-primary btn-large">
+                            Antwort zeigen
+                        </button>
+
+                        <div id="answer-section" style="display: none;">
+                            <div class="spanish-word-display" id="practice-spanish"></div>
+                            
+                            <button id="play-audio-btn" class="btn btn-secondary">
+                                🔊 Aussprache anhören
+                            </button>
+
+                            <div class="practice-buttons">
+                                <button id="next-word-btn" class="btn btn-primary">
+                                    Nächstes Wort →
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Wortliste -->
+        <div class="tab-content" id="list-tab">
+            <div class="card">
+                <div class="list-header">
+                    <h2>Gespeicherte Wörter (<span id="word-count">0</span>)</h2>
+                    <button id="delete-all-btn" class="btn btn-danger-small">
+                        🗑️ Alle löschen
+                    </button>
+                </div>
+                
+                <div id="word-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="db.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // Service Worker registrieren (für PWA-Funktionalität)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker registriert'))
+                .catch(err => console.log('Service Worker Fehler:', err));
+        }
+    </script>
+</body>
+</html>
