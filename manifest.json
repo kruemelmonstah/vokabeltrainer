@@ -2,7 +2,7 @@
     "name": "Deutsch-Spanisch Vokabeltrainer",
     "short_name": "Vokabeltrainer",
     "description": "Lerne Deutsch-Spanisch Vokabeln mit Audio-Aussprache",
-    "start_url": "/",
+    "start_url": "https://kruemelmonstah.github.io/vokabeltrainer/",
     "display": "standalone",
     "background_color": "#2563eb",
     "theme_color": "#2563eb",
