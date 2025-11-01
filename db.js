@@ -107,6 +107,45 @@ class VocabularyDB {
         });
     }
 
+    // Wort aktualisieren
+    async updateWord(id, german, spanish, audioBlob, tags = []) {
+        if (!this.db) await this.init();
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['words'], 'readwrite');
+            const objectStore = transaction.objectStore('words');
+            
+            // Erst das alte Wort holen
+            const getRequest = objectStore.get(id);
+            
+            getRequest.onsuccess = () => {
+                const word = getRequest.result;
+                
+                if (!word) {
+                    reject(new Error('Wort nicht gefunden'));
+                    return;
+                }
+                
+                // Update mit neuen Werten
+                word.german = german.trim();
+                word.spanish = spanish.trim();
+                word.tags = tags;
+                
+                // Nur Audio updaten wenn neues vorhanden
+                if (audioBlob) {
+                    word.audio = audioBlob;
+                }
+                
+                const updateRequest = objectStore.put(word);
+                
+                updateRequest.onsuccess = () => resolve(word);
+                updateRequest.onerror = () => reject(updateRequest.error);
+            };
+            
+            getRequest.onerror = () => reject(getRequest.error);
+        });
+    }
+
     // Wort löschen
     async deleteWord(id) {
         if (!this.db) await this.init();

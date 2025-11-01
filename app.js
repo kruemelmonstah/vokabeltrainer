@@ -36,6 +36,24 @@ function setupEventListeners() {
     });
     document.getElementById('audio-file-input').addEventListener('change', handleAudioUpload);
 
+    // Edit Modal Audio Upload
+    document.getElementById('edit-upload-audio-btn').addEventListener('click', () => {
+        document.getElementById('edit-audio-file-input').click();
+    });
+    document.getElementById('edit-audio-file-input').addEventListener('change', handleEditAudioUpload);
+
+    // Edit Modal Controls
+    document.getElementById('close-modal-btn').addEventListener('click', closeEditModal);
+    document.getElementById('cancel-edit-btn').addEventListener('click', closeEditModal);
+    document.getElementById('save-edit-btn').addEventListener('click', saveEditedWord);
+    
+    // Modal Hintergrund schließt Modal
+    document.getElementById('edit-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'edit-modal') {
+            closeEditModal();
+        }
+    });
+
     // Wort speichern
     document.getElementById('save-word-btn').addEventListener('click', saveWord);
 
@@ -53,9 +71,6 @@ function setupEventListeners() {
     document.getElementById('prev-word-btn').addEventListener('click', previousWord);
     document.getElementById('next-playlist-btn').addEventListener('click', nextWord);
     document.getElementById('back-to-categories-btn').addEventListener('click', backToCategories);
-
-    // Liste
-    document.getElementById('delete-all-btn').addEventListener('click', deleteAllWords);
 }
 
 // Tab wechseln
@@ -293,6 +308,102 @@ function showSuccessMessage(message) {
     setTimeout(() => msgDiv.remove(), 3000);
 }
 
+// === BEARBEITEN ===
+
+let editingWordId = null;
+let editRecordedAudio = null;
+
+async function editWord(id) {
+    try {
+        const word = await vocabularyDB.getWord(id);
+        
+        if (!word) {
+            alert('Wort nicht gefunden!');
+            return;
+        }
+        
+        // Speichere ID für später
+        editingWordId = id;
+        editRecordedAudio = null;
+        
+        // Fülle Formular
+        document.getElementById('edit-german-word').value = word.german;
+        document.getElementById('edit-spanish-word').value = word.spanish;
+        document.getElementById('edit-tags-input').value = word.tags ? word.tags.join(', ') : '';
+        
+        // Reset Audio Status
+        document.getElementById('edit-upload-status').textContent = '';
+        document.getElementById('edit-upload-status').classList.remove('success');
+        document.getElementById('edit-audio-file-input').value = '';
+        
+        // Öffne Modal
+        document.getElementById('edit-modal').classList.add('active');
+        
+    } catch (error) {
+        console.error('Fehler beim Laden:', error);
+        alert('Fehler beim Laden des Wortes.');
+    }
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').classList.remove('active');
+    editingWordId = null;
+    editRecordedAudio = null;
+}
+
+function handleEditAudioUpload(event) {
+    const file = event.target.files[0];
+    
+    if (!file) return;
+
+    if (!file.type.startsWith('audio/')) {
+        alert('Bitte wähle eine Audio-Datei aus!');
+        return;
+    }
+
+    editRecordedAudio = file;
+
+    document.getElementById('edit-upload-status').textContent = `✓ ${file.name} hochgeladen`;
+    document.getElementById('edit-upload-status').classList.add('success');
+}
+
+async function saveEditedWord() {
+    const germanWord = document.getElementById('edit-german-word').value.trim();
+    const spanishWord = document.getElementById('edit-spanish-word').value.trim();
+    const tagsInput = document.getElementById('edit-tags-input').value.trim();
+
+    // Validierung
+    if (!germanWord || !spanishWord) {
+        alert('Bitte beide Felder ausfüllen!');
+        return;
+    }
+
+    // Tags verarbeiten
+    const tags = tagsInput
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+
+    try {
+        // Wort aktualisieren (editRecordedAudio ist null wenn kein neues Audio)
+        await vocabularyDB.updateWord(editingWordId, germanWord, spanishWord, editRecordedAudio, tags);
+
+        // Modal schließen
+        closeEditModal();
+
+        // Erfolgs-Nachricht
+        alert('✓ Änderungen gespeichert!');
+
+        // Liste aktualisieren
+        await updateWordList();
+        await updatePracticeView();
+
+    } catch (error) {
+        console.error('Fehler beim Speichern:', error);
+        alert('Fehler beim Speichern der Änderungen.');
+    }
+}
+
 // === WORTLISTE ===
 
 let currentView = 'tree';
@@ -420,10 +531,13 @@ function createWordListItemHTML(word) {
                 ${tags}
             </div>
             <div class="word-actions">
-                <button class="btn-icon play" onclick="playWordAudio(${word.id})">
+                <button class="btn-icon play" onclick="playWordAudio(${word.id})" title="Abspielen">
                     🔊
                 </button>
-                <button class="btn-icon delete" onclick="deleteWord(${word.id})">
+                <button class="btn-icon edit" onclick="editWord(${word.id})" title="Bearbeiten">
+                    ✏️
+                </button>
+                <button class="btn-icon delete" onclick="deleteWord(${word.id})" title="Löschen">
                     🗑️
                 </button>
             </div>
@@ -723,3 +837,4 @@ function escapeHtml(text) {
 window.playWordAudio = playWordAudio;
 window.deleteWord = deleteWord;
 window.addTagToInput = addTagToInput;
+window.editWord = editWord;

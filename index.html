@@ -15,7 +15,7 @@
     <div class="container">
         <!-- Header -->
         <header>
-            <h1>🇩🇪 🇪🇸 Vokabeltrainer</h1>
+            <h1>🇨🇭 🇪🇸 Vokabeltrainer</h1>
         </header>
 
         <!-- Navigation -->
@@ -31,13 +31,13 @@
                 <h2>Neues Wort hinzufügen</h2>
                 
                 <div class="form-group">
-                    <label>Deutsch:</label>
-                    <input type="text" id="german-word" placeholder="z.B. Hund">
+                    <label>Deutsch (Schweizerdeutsch / Hochdeutsch):</label>
+                    <textarea id="german-word" placeholder="z.B. Hund oder 'Wie geht es dir?'" rows="2"></textarea>
                 </div>
 
                 <div class="form-group">
                     <label>Spanisch:</label>
-                    <input type="text" id="spanish-word" placeholder="z.B. perro">
+                    <textarea id="spanish-word" placeholder="z.B. perro oder '¿Cómo estás?'" rows="2"></textarea>
                 </div>
 
                 <div class="form-group">
@@ -165,9 +165,6 @@
             <div class="card">
                 <div class="list-header">
                     <h2>Gespeicherte Wörter (<span id="word-count">0</span>)</h2>
-                    <button id="delete-all-btn" class="btn btn-danger-small">
-                        🗑️ Alle löschen
-                    </button>
                 </div>
 
                 <!-- Ansicht umschalten -->
@@ -189,6 +186,54 @@
                 <div id="flat-view" class="flat-view" style="display: none;">
                     <div id="word-list"></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Wort bearbeiten</h2>
+                <button id="close-modal-btn" class="btn-close">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Deutsch (Schweizerdeutsch / Hochdeutsch):</label>
+                    <textarea id="edit-german-word" rows="2"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Spanisch:</label>
+                    <textarea id="edit-spanish-word" rows="2"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Kategorien / Tags:</label>
+                    <input type="text" id="edit-tags-input" placeholder="z.B. Tiere, Haustiere">
+                </div>
+
+                <div class="form-group">
+                    <label>Audio ändern (optional):</label>
+                    <div class="audio-upload-section">
+                        <input type="file" id="edit-audio-file-input" accept="audio/*" style="display: none;">
+                        <button id="edit-upload-audio-btn" class="btn btn-secondary">
+                            📁 Neues Audio hochladen
+                        </button>
+                        <div id="edit-upload-status"></div>
+                    </div>
+                    <div class="audio-help">💡 Leer lassen um Audio beizubehalten</div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="cancel-edit-btn" class="btn btn-secondary">
+                    Abbrechen
+                </button>
+                <button id="save-edit-btn" class="btn btn-primary">
+                    💾 Änderungen speichern
+                </button>
             </div>
         </div>
     </div>
