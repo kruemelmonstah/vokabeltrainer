@@ -42,6 +42,14 @@ function setupEventListeners() {
     });
     document.getElementById('edit-audio-file-input').addEventListener('change', handleEditAudioUpload);
 
+    // Edit Modal Audio Recording
+    document.getElementById('edit-record-btn').addEventListener('click', startEditRecording);
+    document.getElementById('edit-stop-btn').addEventListener('click', stopEditRecording);
+    document.getElementById('edit-play-preview-btn').addEventListener('click', playEditPreview);
+
+    // Edit Modal Tag Input Focus
+    document.getElementById('edit-tags-input').addEventListener('focus', showEditExistingTags);
+
     // Edit Modal Controls
     document.getElementById('close-modal-btn').addEventListener('click', closeEditModal);
     document.getElementById('cancel-edit-btn').addEventListener('click', closeEditModal);
@@ -312,6 +320,8 @@ function showSuccessMessage(message) {
 
 let editingWordId = null;
 let editRecordedAudio = null;
+let editMediaRecorder = null;
+let editAudioChunks = [];
 
 async function editWord(id) {
     try {
@@ -334,7 +344,13 @@ async function editWord(id) {
         // Reset Audio Status
         document.getElementById('edit-upload-status').textContent = '';
         document.getElementById('edit-upload-status').classList.remove('success');
+        document.getElementById('edit-recording-status').textContent = '';
+        document.getElementById('edit-recording-status').classList.remove('recording');
         document.getElementById('edit-audio-file-input').value = '';
+        document.getElementById('edit-play-preview-btn').disabled = true;
+        
+        // Zeige Tag-Vorschläge
+        await showEditExistingTags();
         
         // Öffne Modal
         document.getElementById('edit-modal').classList.add('active');
@@ -346,9 +362,21 @@ async function editWord(id) {
 }
 
 function closeEditModal() {
+    // Stoppe ggf. laufende Aufnahme
+    if (editMediaRecorder && editMediaRecorder.state !== 'inactive') {
+        editMediaRecorder.stop();
+    }
+    
     document.getElementById('edit-modal').classList.remove('active');
     editingWordId = null;
     editRecordedAudio = null;
+    editMediaRecorder = null;
+    editAudioChunks = [];
+    
+    // Reset Buttons
+    document.getElementById('edit-record-btn').disabled = false;
+    document.getElementById('edit-stop-btn').disabled = true;
+    document.getElementById('edit-record-btn').classList.remove('recording');
 }
 
 function handleEditAudioUpload(event) {
@@ -365,6 +393,122 @@ function handleEditAudioUpload(event) {
 
     document.getElementById('edit-upload-status').textContent = `✓ ${file.name} hochgeladen`;
     document.getElementById('edit-upload-status').classList.add('success');
+    document.getElementById('edit-play-preview-btn').disabled = false;
+    
+    // Recording Status zurücksetzen
+    document.getElementById('edit-recording-status').textContent = '';
+    document.getElementById('edit-recording-status').classList.remove('recording');
+}
+
+async function startEditRecording() {
+    try {
+        const constraints = {
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100
+            }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        let options = { mimeType: 'audio/webm' };
+        
+        if (!MediaRecorder.isTypeSupported('audio/webm')) {
+            if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                options = { mimeType: 'audio/mp4' };
+            } else {
+                options = {};
+            }
+        }
+
+        editMediaRecorder = new MediaRecorder(stream, options);
+        editAudioChunks = [];
+
+        editMediaRecorder.ondataavailable = (event) => {
+            editAudioChunks.push(event.data);
+        };
+
+        editMediaRecorder.onstop = () => {
+            const mimeType = editMediaRecorder.mimeType || 'audio/webm';
+            const audioBlob = new Blob(editAudioChunks, { type: mimeType });
+            editRecordedAudio = audioBlob;
+            
+            // UI aktualisieren
+            document.getElementById('edit-play-preview-btn').disabled = false;
+            document.getElementById('edit-recording-status').textContent = '✓ Aufnahme gespeichert';
+            document.getElementById('edit-recording-status').classList.remove('recording');
+            
+            // Upload Status zurücksetzen
+            document.getElementById('edit-upload-status').textContent = '';
+            document.getElementById('edit-upload-status').classList.remove('success');
+            
+            // Stream stoppen
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        editMediaRecorder.start();
+
+        // UI aktualisieren
+        document.getElementById('edit-record-btn').disabled = true;
+        document.getElementById('edit-stop-btn').disabled = false;
+        document.getElementById('edit-record-btn').classList.add('recording');
+        document.getElementById('edit-recording-status').textContent = '🔴 Aufnahme läuft...';
+        document.getElementById('edit-recording-status').classList.add('recording');
+
+    } catch (error) {
+        console.error('Fehler bei Aufnahme:', error);
+        alert('Fehler beim Zugriff auf das Mikrofon. Bitte Berechtigungen prüfen oder eine Audio-Datei hochladen.');
+    }
+}
+
+function stopEditRecording() {
+    if (editMediaRecorder && editMediaRecorder.state !== 'inactive') {
+        editMediaRecorder.stop();
+        
+        // UI aktualisieren
+        document.getElementById('edit-record-btn').disabled = false;
+        document.getElementById('edit-stop-btn').disabled = true;
+        document.getElementById('edit-record-btn').classList.remove('recording');
+    }
+}
+
+function playEditPreview() {
+    if (editRecordedAudio) {
+        const audio = new Audio(URL.createObjectURL(editRecordedAudio));
+        audio.play();
+    }
+}
+
+async function showEditExistingTags() {
+    const existingTagsDiv = document.getElementById('edit-existing-tags');
+    const tags = await vocabularyDB.getAllTags();
+    
+    if (tags.length === 0) {
+        existingTagsDiv.innerHTML = '';
+        return;
+    }
+    
+    existingTagsDiv.innerHTML = tags.map(tag => 
+        `<span class="tag-chip" onclick="addEditTagToInput('${escapeHtml(tag)}')">${escapeHtml(tag)}</span>`
+    ).join('');
+}
+
+function addEditTagToInput(tag) {
+    const input = document.getElementById('edit-tags-input');
+    const currentValue = input.value.trim();
+    
+    if (currentValue) {
+        if (!currentValue.endsWith(',')) {
+            input.value = currentValue + ', ' + tag;
+        } else {
+            input.value = currentValue + ' ' + tag;
+        }
+    } else {
+        input.value = tag;
+    }
+    
+    input.focus();
 }
 
 async function saveEditedWord() {
@@ -837,4 +981,5 @@ function escapeHtml(text) {
 window.playWordAudio = playWordAudio;
 window.deleteWord = deleteWord;
 window.addTagToInput = addTagToInput;
+window.addEditTagToInput = addEditTagToInput;
 window.editWord = editWord;

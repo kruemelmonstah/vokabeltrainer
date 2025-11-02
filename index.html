@@ -212,17 +212,41 @@
                 <div class="form-group">
                     <label>Kategorien / Tags:</label>
                     <input type="text" id="edit-tags-input" placeholder="z.B. Tiere, Haustiere">
+                    <div class="tags-help">💡 Tipp: Wörter können mehrere Tags haben</div>
+                    <div id="edit-existing-tags" class="existing-tags"></div>
                 </div>
 
                 <div class="form-group">
                     <label>Audio ändern (optional):</label>
+                    
+                    <!-- Audio Upload -->
                     <div class="audio-upload-section">
                         <input type="file" id="edit-audio-file-input" accept="audio/*" style="display: none;">
-                        <button id="edit-upload-audio-btn" class="btn btn-secondary">
-                            📁 Neues Audio hochladen
+                        <button id="edit-upload-audio-btn" class="btn btn-primary">
+                            📁 Audio-Datei hochladen
                         </button>
                         <div id="edit-upload-status"></div>
                     </div>
+
+                    <!-- ODER Trennlinie -->
+                    <div class="divider">
+                        <span>ODER</span>
+                    </div>
+
+                    <!-- Audio Aufnahme -->
+                    <div class="audio-controls">
+                        <button id="edit-record-btn" class="btn btn-record">
+                            🎤 Aufnehmen
+                        </button>
+                        <button id="edit-stop-btn" class="btn btn-secondary" disabled>
+                            ⏹️ Stop
+                        </button>
+                        <button id="edit-play-preview-btn" class="btn btn-secondary" disabled>
+                            ▶️ Anhören
+                        </button>
+                    </div>
+                    <div id="edit-recording-status"></div>
+                    
                     <div class="audio-help">💡 Leer lassen um Audio beizubehalten</div>
                 </div>
             </div>
