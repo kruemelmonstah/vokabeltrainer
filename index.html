@@ -41,30 +41,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Kategorien / Tags:</label>
-                    <input type="text" id="tags-input" placeholder="z.B. Tiere, Haustiere (durch Komma trennen)">
-                    <div class="tags-help">💡 Tipp: Wörter können mehrere Tags haben</div>
-                    <div id="existing-tags" class="existing-tags"></div>
-                </div>
-
-                <div class="form-group">
                     <label>Spanische Aussprache:</label>
-                    
-                    <!-- Audio Upload -->
-                    <div class="audio-upload-section">
-                        <input type="file" id="audio-file-input" accept="audio/*" style="display: none;">
-                        <button id="upload-audio-btn" class="btn btn-primary">
-                            📁 Audio-Datei hochladen
-                        </button>
-                        <div id="upload-status"></div>
-                    </div>
-
-                    <!-- ODER Trennlinie -->
-                    <div class="divider">
-                        <span>ODER</span>
-                    </div>
-
-                    <!-- Audio Aufnahme -->
                     <div class="audio-controls">
                         <button id="record-btn" class="btn btn-record">
                             🎤 Aufnehmen
@@ -77,6 +54,13 @@
                         </button>
                     </div>
                     <div id="recording-status"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Kategorien / Tags:</label>
+                    <input type="text" id="tags-input" placeholder="z.B. Tiere, Haustiere (durch Komma trennen)">
+                    <div class="tags-help">💡 Tipp: Wörter können mehrere Tags haben</div>
+                    <div id="existing-tags" class="existing-tags"></div>
                 </div>
 
                 <button id="save-word-btn" class="btn btn-primary btn-large">
@@ -210,30 +194,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Kategorien / Tags:</label>
-                    <input type="text" id="edit-tags-input" placeholder="z.B. Tiere, Haustiere">
-                    <div class="tags-help">💡 Tipp: Wörter können mehrere Tags haben</div>
-                    <div id="edit-existing-tags" class="existing-tags"></div>
-                </div>
-
-                <div class="form-group">
                     <label>Audio ändern (optional):</label>
-                    
-                    <!-- Audio Upload -->
-                    <div class="audio-upload-section">
-                        <input type="file" id="edit-audio-file-input" accept="audio/*" style="display: none;">
-                        <button id="edit-upload-audio-btn" class="btn btn-primary">
-                            📁 Audio-Datei hochladen
-                        </button>
-                        <div id="edit-upload-status"></div>
-                    </div>
-
-                    <!-- ODER Trennlinie -->
-                    <div class="divider">
-                        <span>ODER</span>
-                    </div>
-
-                    <!-- Audio Aufnahme -->
                     <div class="audio-controls">
                         <button id="edit-record-btn" class="btn btn-record">
                             🎤 Aufnehmen
@@ -246,8 +207,14 @@
                         </button>
                     </div>
                     <div id="edit-recording-status"></div>
-                    
                     <div class="audio-help">💡 Leer lassen um Audio beizubehalten</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Kategorien / Tags:</label>
+                    <input type="text" id="edit-tags-input" placeholder="z.B. Tiere, Haustiere">
+                    <div class="tags-help">💡 Tipp: Wörter können mehrere Tags haben</div>
+                    <div id="edit-existing-tags" class="existing-tags"></div>
                 </div>
             </div>
 

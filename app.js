@@ -30,18 +30,6 @@ function setupEventListeners() {
     document.getElementById('stop-btn').addEventListener('click', stopRecording);
     document.getElementById('play-preview-btn').addEventListener('click', playPreview);
 
-    // Audio Upload
-    document.getElementById('upload-audio-btn').addEventListener('click', () => {
-        document.getElementById('audio-file-input').click();
-    });
-    document.getElementById('audio-file-input').addEventListener('change', handleAudioUpload);
-
-    // Edit Modal Audio Upload
-    document.getElementById('edit-upload-audio-btn').addEventListener('click', () => {
-        document.getElementById('edit-audio-file-input').click();
-    });
-    document.getElementById('edit-audio-file-input').addEventListener('change', handleEditAudioUpload);
-
     // Edit Modal Audio Recording
     document.getElementById('edit-record-btn').addEventListener('click', startEditRecording);
     document.getElementById('edit-stop-btn').addEventListener('click', stopEditRecording);
@@ -108,31 +96,6 @@ function switchTab(tabName) {
 
 // === AUDIO AUFNAHME ===
 
-// Audio-Datei hochladen
-function handleAudioUpload(event) {
-    const file = event.target.files[0];
-    
-    if (!file) return;
-
-    // Prüfe ob es eine Audio-Datei ist
-    if (!file.type.startsWith('audio/')) {
-        alert('Bitte wähle eine Audio-Datei aus!');
-        return;
-    }
-
-    // Konvertiere zu Blob und speichere
-    recordedAudio = file;
-
-    // UI aktualisieren
-    document.getElementById('upload-status').textContent = `✓ ${file.name} hochgeladen`;
-    document.getElementById('upload-status').classList.add('success');
-    document.getElementById('play-preview-btn').disabled = false;
-    
-    // Recording Status zurücksetzen
-    document.getElementById('recording-status').textContent = '';
-    document.getElementById('recording-status').classList.remove('recording');
-}
-
 async function startRecording() {
     try {
         // Für iOS: Explizit Audio-Constraints setzen
@@ -176,10 +139,6 @@ async function startRecording() {
             document.getElementById('play-preview-btn').disabled = false;
             document.getElementById('recording-status').textContent = '✓ Aufnahme gespeichert';
             document.getElementById('recording-status').classList.remove('recording');
-            
-            // Upload Status zurücksetzen
-            document.getElementById('upload-status').textContent = '';
-            document.getElementById('upload-status').classList.remove('success');
             
             // Stream stoppen
             stream.getTracks().forEach(track => track.stop());
@@ -232,7 +191,7 @@ async function saveWord() {
     }
 
     if (!recordedAudio) {
-        alert('Bitte eine Audio-Datei hochladen oder eine Aufnahme machen!');
+        alert('Bitte eine Audio-Aufnahme machen!');
         return;
     }
 
@@ -253,12 +212,9 @@ async function saveWord() {
         document.getElementById('german-word').value = '';
         document.getElementById('spanish-word').value = '';
         document.getElementById('tags-input').value = '';
-        document.getElementById('audio-file-input').value = '';
         recordedAudio = null;
         document.getElementById('play-preview-btn').disabled = true;
         document.getElementById('recording-status').textContent = '';
-        document.getElementById('upload-status').textContent = '';
-        document.getElementById('upload-status').classList.remove('success');
 
         // Liste aktualisieren
         await updateWordList();
@@ -342,11 +298,8 @@ async function editWord(id) {
         document.getElementById('edit-tags-input').value = word.tags ? word.tags.join(', ') : '';
         
         // Reset Audio Status
-        document.getElementById('edit-upload-status').textContent = '';
-        document.getElementById('edit-upload-status').classList.remove('success');
         document.getElementById('edit-recording-status').textContent = '';
         document.getElementById('edit-recording-status').classList.remove('recording');
-        document.getElementById('edit-audio-file-input').value = '';
         document.getElementById('edit-play-preview-btn').disabled = true;
         
         // Zeige Tag-Vorschläge
@@ -377,27 +330,6 @@ function closeEditModal() {
     document.getElementById('edit-record-btn').disabled = false;
     document.getElementById('edit-stop-btn').disabled = true;
     document.getElementById('edit-record-btn').classList.remove('recording');
-}
-
-function handleEditAudioUpload(event) {
-    const file = event.target.files[0];
-    
-    if (!file) return;
-
-    if (!file.type.startsWith('audio/')) {
-        alert('Bitte wähle eine Audio-Datei aus!');
-        return;
-    }
-
-    editRecordedAudio = file;
-
-    document.getElementById('edit-upload-status').textContent = `✓ ${file.name} hochgeladen`;
-    document.getElementById('edit-upload-status').classList.add('success');
-    document.getElementById('edit-play-preview-btn').disabled = false;
-    
-    // Recording Status zurücksetzen
-    document.getElementById('edit-recording-status').textContent = '';
-    document.getElementById('edit-recording-status').classList.remove('recording');
 }
 
 async function startEditRecording() {
@@ -439,10 +371,6 @@ async function startEditRecording() {
             document.getElementById('edit-recording-status').textContent = '✓ Aufnahme gespeichert';
             document.getElementById('edit-recording-status').classList.remove('recording');
             
-            // Upload Status zurücksetzen
-            document.getElementById('edit-upload-status').textContent = '';
-            document.getElementById('edit-upload-status').classList.remove('success');
-            
             // Stream stoppen
             stream.getTracks().forEach(track => track.stop());
         };
@@ -458,7 +386,7 @@ async function startEditRecording() {
 
     } catch (error) {
         console.error('Fehler bei Aufnahme:', error);
-        alert('Fehler beim Zugriff auf das Mikrofon. Bitte Berechtigungen prüfen oder eine Audio-Datei hochladen.');
+        alert('Fehler beim Zugriff auf das Mikrofon. Bitte Berechtigungen prüfen.');
     }
 }
 
