@@ -30,6 +30,17 @@ function setupEventListeners() {
     document.getElementById('stop-btn').addEventListener('click', stopRecording);
     document.getElementById('play-preview-btn').addEventListener('click', playPreview);
 
+    // Wort speichern
+    document.getElementById('save-word-btn').addEventListener('click', saveWord);
+
+    // Tags - Vorhandene Tags anzeigen beim Focus
+    document.getElementById('tags-input').addEventListener('focus', showExistingTags);
+
+    // View Toggle (Baum vs. Liste)
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchView(btn.dataset.view));
+    });
+
     // Edit Modal Audio Recording
     document.getElementById('edit-record-btn').addEventListener('click', startEditRecording);
     document.getElementById('edit-stop-btn').addEventListener('click', stopEditRecording);
@@ -48,17 +59,6 @@ function setupEventListeners() {
         if (e.target.id === 'edit-modal') {
             closeEditModal();
         }
-    });
-
-    // Wort speichern
-    document.getElementById('save-word-btn').addEventListener('click', saveWord);
-
-    // Tags - Vorhandene Tags anzeigen beim Focus
-    document.getElementById('tags-input').addEventListener('focus', showExistingTags);
-
-    // View Toggle (Baum vs. Liste)
-    document.querySelectorAll('.view-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchView(btn.dataset.view));
     });
 
     // Playlist Controls
@@ -98,7 +98,6 @@ function switchTab(tabName) {
 
 async function startRecording() {
     try {
-        // Für iOS: Explizit Audio-Constraints setzen
         const constraints = {
             audio: {
                 echoCancellation: true,
@@ -109,15 +108,12 @@ async function startRecording() {
 
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         
-        // Für iOS: Versuche verschiedene MIME-Types
         let options = { mimeType: 'audio/webm' };
         
-        // Fallback für iOS - versuche MP4
         if (!MediaRecorder.isTypeSupported('audio/webm')) {
             if (MediaRecorder.isTypeSupported('audio/mp4')) {
                 options = { mimeType: 'audio/mp4' };
             } else {
-                // Kein MIME-Type angeben, Browser wählt automatisch
                 options = {};
             }
         }
@@ -130,23 +126,19 @@ async function startRecording() {
         };
 
         mediaRecorder.onstop = () => {
-            // Erstelle Blob mit dem aufgenommenen Format
             const mimeType = mediaRecorder.mimeType || 'audio/webm';
             const audioBlob = new Blob(audioChunks, { type: mimeType });
             recordedAudio = audioBlob;
             
-            // UI aktualisieren
             document.getElementById('play-preview-btn').disabled = false;
             document.getElementById('recording-status').textContent = '✓ Aufnahme gespeichert';
             document.getElementById('recording-status').classList.remove('recording');
             
-            // Stream stoppen
             stream.getTracks().forEach(track => track.stop());
         };
 
         mediaRecorder.start();
 
-        // UI aktualisieren
         document.getElementById('record-btn').disabled = true;
         document.getElementById('stop-btn').disabled = false;
         document.getElementById('record-btn').classList.add('recording');
@@ -155,7 +147,7 @@ async function startRecording() {
 
     } catch (error) {
         console.error('Fehler bei Aufnahme:', error);
-        alert('Fehler beim Zugriff auf das Mikrofon. Bitte Berechtigungen prüfen oder eine Audio-Datei hochladen.');
+        alert('Fehler beim Zugriff auf das Mikrofon. Bitte Berechtigungen prüfen.');
     }
 }
 
@@ -163,7 +155,6 @@ function stopRecording() {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
         
-        // UI aktualisieren
         document.getElementById('record-btn').disabled = false;
         document.getElementById('stop-btn').disabled = true;
         document.getElementById('record-btn').classList.remove('recording');
@@ -184,7 +175,6 @@ async function saveWord() {
     const spanishWord = document.getElementById('spanish-word').value.trim();
     const tagsInput = document.getElementById('tags-input').value.trim();
 
-    // Validierung
     if (!germanWord || !spanishWord) {
         alert('Bitte beide Wörter eingeben!');
         return;
@@ -195,20 +185,16 @@ async function saveWord() {
         return;
     }
 
-    // Tags verarbeiten
     const tags = tagsInput
         .split(',')
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
 
     try {
-        // Wort in Datenbank speichern
         await vocabularyDB.addWord(germanWord, spanishWord, recordedAudio, tags);
 
-        // Erfolgs-Feedback
         showSuccessMessage('Wort erfolgreich gespeichert! ✓');
 
-        // Formular zurücksetzen
         document.getElementById('german-word').value = '';
         document.getElementById('spanish-word').value = '';
         document.getElementById('tags-input').value = '';
@@ -216,7 +202,6 @@ async function saveWord() {
         document.getElementById('play-preview-btn').disabled = true;
         document.getElementById('recording-status').textContent = '';
 
-        // Liste aktualisieren
         await updateWordList();
 
     } catch (error) {
@@ -225,7 +210,6 @@ async function saveWord() {
     }
 }
 
-// Vorhandene Tags anzeigen
 async function showExistingTags() {
     const existingTagsDiv = document.getElementById('existing-tags');
     const tags = await vocabularyDB.getAllTags();
@@ -245,7 +229,6 @@ function addTagToInput(tag) {
     const currentValue = input.value.trim();
     
     if (currentValue) {
-        // Füge Komma hinzu wenn schon Tags vorhanden
         if (!currentValue.endsWith(',')) {
             input.value = currentValue + ', ' + tag;
         } else {
@@ -288,24 +271,19 @@ async function editWord(id) {
             return;
         }
         
-        // Speichere ID für später
         editingWordId = id;
         editRecordedAudio = null;
         
-        // Fülle Formular
         document.getElementById('edit-german-word').value = word.german;
         document.getElementById('edit-spanish-word').value = word.spanish;
         document.getElementById('edit-tags-input').value = word.tags ? word.tags.join(', ') : '';
         
-        // Reset Audio Status
         document.getElementById('edit-recording-status').textContent = '';
         document.getElementById('edit-recording-status').classList.remove('recording');
         document.getElementById('edit-play-preview-btn').disabled = true;
         
-        // Zeige Tag-Vorschläge
         await showEditExistingTags();
         
-        // Öffne Modal
         document.getElementById('edit-modal').classList.add('active');
         
     } catch (error) {
@@ -315,7 +293,6 @@ async function editWord(id) {
 }
 
 function closeEditModal() {
-    // Stoppe ggf. laufende Aufnahme
     if (editMediaRecorder && editMediaRecorder.state !== 'inactive') {
         editMediaRecorder.stop();
     }
@@ -326,7 +303,6 @@ function closeEditModal() {
     editMediaRecorder = null;
     editAudioChunks = [];
     
-    // Reset Buttons
     document.getElementById('edit-record-btn').disabled = false;
     document.getElementById('edit-stop-btn').disabled = true;
     document.getElementById('edit-record-btn').classList.remove('recording');
@@ -366,18 +342,15 @@ async function startEditRecording() {
             const audioBlob = new Blob(editAudioChunks, { type: mimeType });
             editRecordedAudio = audioBlob;
             
-            // UI aktualisieren
             document.getElementById('edit-play-preview-btn').disabled = false;
             document.getElementById('edit-recording-status').textContent = '✓ Aufnahme gespeichert';
             document.getElementById('edit-recording-status').classList.remove('recording');
             
-            // Stream stoppen
             stream.getTracks().forEach(track => track.stop());
         };
 
         editMediaRecorder.start();
 
-        // UI aktualisieren
         document.getElementById('edit-record-btn').disabled = true;
         document.getElementById('edit-stop-btn').disabled = false;
         document.getElementById('edit-record-btn').classList.add('recording');
@@ -394,7 +367,6 @@ function stopEditRecording() {
     if (editMediaRecorder && editMediaRecorder.state !== 'inactive') {
         editMediaRecorder.stop();
         
-        // UI aktualisieren
         document.getElementById('edit-record-btn').disabled = false;
         document.getElementById('edit-stop-btn').disabled = true;
         document.getElementById('edit-record-btn').classList.remove('recording');
@@ -444,29 +416,24 @@ async function saveEditedWord() {
     const spanishWord = document.getElementById('edit-spanish-word').value.trim();
     const tagsInput = document.getElementById('edit-tags-input').value.trim();
 
-    // Validierung
     if (!germanWord || !spanishWord) {
         alert('Bitte beide Felder ausfüllen!');
         return;
     }
 
-    // Tags verarbeiten
     const tags = tagsInput
         .split(',')
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
 
     try {
-        // Wort aktualisieren (editRecordedAudio ist null wenn kein neues Audio)
         await vocabularyDB.updateWord(editingWordId, germanWord, spanishWord, editRecordedAudio, tags);
 
-        // Modal schließen
         closeEditModal();
 
-        // Erfolgs-Nachricht
         alert('✓ Änderungen gespeichert!');
 
-        // Liste aktualisieren
+        // FIX 1: Liste bleibt an gleicher Position (expandedFolders wird beibehalten)
         await updateWordList();
         await updatePracticeView();
 
@@ -479,16 +446,15 @@ async function saveEditedWord() {
 // === WORTLISTE ===
 
 let currentView = 'tree';
+let expandedFolders = new Set(); // FIX 1: Speichert welche Ordner aufgeklappt sind
 
 function switchView(view) {
     currentView = view;
     
-    // Buttons aktualisieren
     document.querySelectorAll('.view-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.view === view);
     });
     
-    // Views umschalten
     if (view === 'tree') {
         document.getElementById('tree-view').style.display = 'block';
         document.getElementById('flat-view').style.display = 'none';
@@ -516,7 +482,6 @@ async function updateTreeView(words) {
     const categoryTree = document.getElementById('category-tree');
     categoryTree.innerHTML = '';
     
-    // Gruppiere Wörter nach Tags
     const categorizedWords = {};
     const uncategorized = [];
     
@@ -533,16 +498,13 @@ async function updateTreeView(words) {
         }
     });
     
-    // Sortiere Kategorien alphabetisch
     const sortedCategories = Object.keys(categorizedWords).sort();
     
-    // Erstelle Ordner für jede Kategorie
     sortedCategories.forEach(category => {
         const folder = createCategoryFolder(category, categorizedWords[category]);
         categoryTree.appendChild(folder);
     });
     
-    // Unkategorisierte Wörter
     if (uncategorized.length > 0) {
         const folder = createCategoryFolder('📝 Ohne Kategorie', uncategorized);
         categoryTree.appendChild(folder);
@@ -568,13 +530,27 @@ function createCategoryFolder(categoryName, words) {
         </div>
     `;
     
-    // Toggle Ordner
     const header = folder.querySelector('.folder-header');
     const content = folder.querySelector('.folder-content');
     
+    // FIX 1: Stelle Zustand wieder her
+    if (expandedFolders.has(categoryName)) {
+        header.classList.add('expanded');
+        content.classList.add('expanded');
+    }
+    
     header.addEventListener('click', () => {
+        const isExpanding = !header.classList.contains('expanded');
+        
         header.classList.toggle('expanded');
         content.classList.toggle('expanded');
+        
+        // FIX 1: Speichere Zustand
+        if (isExpanding) {
+            expandedFolders.add(categoryName);
+        } else {
+            expandedFolders.delete(categoryName);
+        }
     });
     
     return folder;
@@ -707,7 +683,6 @@ async function loadCategories() {
 }
 
 async function startPlaylist(tag) {
-    // Lade Wörter
     if (tag) {
         playlistWords = await vocabularyDB.getWordsByTag(tag);
         document.getElementById('playlist-title').textContent = tag;
@@ -721,33 +696,27 @@ async function startPlaylist(tag) {
         return;
     }
     
-    // Mische Wörter
     playlistWords = shuffleArray(playlistWords);
     
     currentWordIndex = 0;
     isPlaying = false;
     
-    // UI umschalten
     document.getElementById('category-selection').style.display = 'none';
     document.getElementById('playlist-mode').style.display = 'block';
     
-    // Erstes Wort laden
     loadPlaylistWord();
 }
 
 function loadPlaylistWord() {
     if (currentWordIndex >= playlistWords.length) {
-        // Ende der Playlist
         const repeatMode = document.getElementById('repeat-mode').checked;
         
         if (repeatMode) {
-            // Von vorne beginnen
             currentWordIndex = 0;
             playlistWords = shuffleArray(playlistWords);
             loadPlaylistWord();
             return;
         } else {
-            // Zurück zur Kategorie-Auswahl
             stopPlaylist();
             alert('Playlist beendet! 🎉');
             backToCategories();
@@ -757,17 +726,14 @@ function loadPlaylistWord() {
     
     const word = playlistWords[currentWordIndex];
     
-    // UI aktualisieren
     document.getElementById('playlist-german').textContent = word.german;
     document.getElementById('playlist-spanish').textContent = word.spanish;
     document.getElementById('playlist-counter').textContent = 
         `${currentWordIndex + 1} / ${playlistWords.length}`;
     
-    // Progress Bar
     const progress = ((currentWordIndex + 1) / playlistWords.length) * 100;
     document.getElementById('progress-fill').style.width = `${progress}%`;
     
-    // Wenn Autoplay aktiv, Audio abspielen
     if (isPlaying) {
         playCurrentAudio();
     }
@@ -777,35 +743,49 @@ function playCurrentAudio() {
     const word = playlistWords[currentWordIndex];
     
     if (word && word.audio) {
-        // Vorheriges Audio stoppen
         if (playlistAudio) {
             playlistAudio.pause();
             playlistAudio = null;
         }
         
-        // Neues Audio erstellen und abspielen
         playlistAudio = new Audio(URL.createObjectURL(word.audio));
         
+        // FIX 2: Warte bis Audio KOMPLETT fertig ist
         playlistAudio.onended = () => {
-            // Nach Audio-Ende: Pause, dann nächstes Wort
             const pauseDuration = parseInt(document.getElementById('pause-duration').value) * 1000;
             
-            if (pauseDuration > 0 && isPlaying) {
-                playlistTimeout = setTimeout(() => {
-                    nextWord();
-                }, pauseDuration);
-            } else if (isPlaying) {
-                nextWord();
+            if (isPlaying) {
+                if (pauseDuration > 0) {
+                    playlistTimeout = setTimeout(() => {
+                        nextWord();
+                    }, pauseDuration);
+                } else {
+                    // Kleine Verzögerung auch bei "Keine"
+                    playlistTimeout = setTimeout(() => {
+                        nextWord();
+                    }, 100);
+                }
+            }
+        };
+        
+        // FIX 2: Fehlerbehandlung
+        playlistAudio.onerror = (error) => {
+            console.error('Audio-Fehler:', error);
+            if (isPlaying) {
+                setTimeout(() => nextWord(), 500);
             }
         };
         
         playlistAudio.play().catch(err => {
-            console.error('Audio-Fehler:', err);
-            // Nächstes Wort bei Fehler
+            console.error('Play-Fehler:', err);
             if (isPlaying) {
                 setTimeout(() => nextWord(), 500);
             }
         });
+    } else {
+        if (isPlaying) {
+            setTimeout(() => nextWord(), 500);
+        }
     }
 }
 
@@ -813,28 +793,23 @@ function togglePlayPause() {
     const btn = document.getElementById('play-pause-btn');
     
     if (isPlaying) {
-        // Pause
         isPlaying = false;
         btn.textContent = '▶️';
         btn.classList.remove('playing');
         
-        // Audio stoppen
         if (playlistAudio) {
             playlistAudio.pause();
         }
         
-        // Timeout abbrechen
         if (playlistTimeout) {
             clearTimeout(playlistTimeout);
             playlistTimeout = null;
         }
     } else {
-        // Play
         isPlaying = true;
         btn.textContent = '⏸️';
         btn.classList.add('playing');
         
-        // Audio abspielen
         playCurrentAudio();
     }
 }
@@ -887,7 +862,6 @@ function backToCategories() {
     loadCategories();
 }
 
-// Hilfsfunktion: Array mischen
 function shuffleArray(array) {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
