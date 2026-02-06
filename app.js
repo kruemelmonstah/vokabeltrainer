@@ -433,7 +433,6 @@ async function saveEditedWord() {
 
         alert('✓ Änderungen gespeichert!');
 
-        // FIX 1: Liste bleibt an gleicher Position (expandedFolders wird beibehalten)
         await updateWordList();
         await updatePracticeView();
 
@@ -446,7 +445,7 @@ async function saveEditedWord() {
 // === WORTLISTE ===
 
 let currentView = 'tree';
-let expandedFolders = new Set(); // FIX 1: Speichert welche Ordner aufgeklappt sind
+let expandedFolders = new Set();
 
 function switchView(view) {
     currentView = view;
@@ -533,7 +532,6 @@ function createCategoryFolder(categoryName, words) {
     const header = folder.querySelector('.folder-header');
     const content = folder.querySelector('.folder-content');
     
-    // FIX 1: Stelle Zustand wieder her
     if (expandedFolders.has(categoryName)) {
         header.classList.add('expanded');
         content.classList.add('expanded');
@@ -545,7 +543,6 @@ function createCategoryFolder(categoryName, words) {
         header.classList.toggle('expanded');
         content.classList.toggle('expanded');
         
-        // FIX 1: Speichere Zustand
         if (isExpanding) {
             expandedFolders.add(categoryName);
         } else {
@@ -645,6 +642,7 @@ let currentWordIndex = 0;
 let isPlaying = false;
 let playlistAudio = null;
 let playlistTimeout = null;
+let audioPlaying = false;
 
 async function updatePracticeView() {
     const count = await vocabularyDB.getWordCount();
@@ -700,6 +698,7 @@ async function startPlaylist(tag) {
     
     currentWordIndex = 0;
     isPlaying = false;
+    audioPlaying = false;
     
     document.getElementById('category-selection').style.display = 'none';
     document.getElementById('playlist-mode').style.display = 'block';
@@ -735,54 +734,93 @@ function loadPlaylistWord() {
     document.getElementById('progress-fill').style.width = `${progress}%`;
     
     if (isPlaying) {
-        playCurrentAudio();
+        setTimeout(() => {
+            playCurrentAudioNew();
+        }, 200);
     }
 }
 
-function playCurrentAudio() {
+function playCurrentAudioNew() {
+    if (audioPlaying) {
+        return;
+    }
+    
     const word = playlistWords[currentWordIndex];
     
-    if (word && word.audio) {
-        if (playlistAudio) {
-            playlistAudio.pause();
-            playlistAudio = null;
+    if (!word || !word.audio) {
+        if (isPlaying) {
+            setTimeout(() => nextWord(), 300);
         }
+        return;
+    }
+    
+    audioPlaying = true;
+    
+    if (playlistAudio) {
+        try {
+            playlistAudio.pause();
+            playlistAudio.currentTime = 0;
+            playlistAudio.src = '';
+            playlistAudio.load();
+        } catch (e) {
+            console.error('Fehler beim Stoppen:', e);
+        }
+        playlistAudio = null;
+    }
+    
+    try {
+        const audioBlob = word.audio;
+        const audioUrl = URL.createObjectURL(audioBlob);
+        playlistAudio = new Audio(audioUrl);
         
-        playlistAudio = new Audio(URL.createObjectURL(word.audio));
+        playlistAudio.load();
         
-        // FIX 2: Warte bis Audio KOMPLETT fertig ist
-        playlistAudio.onended = () => {
+        playlistAudio.addEventListener('canplaythrough', function onReady() {
+            playlistAudio.removeEventListener('canplaythrough', onReady);
+            
+            const playPromise = playlistAudio.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.catch(err => {
+                    console.error('Play-Fehler:', err);
+                    audioPlaying = false;
+                    if (isPlaying) {
+                        setTimeout(() => nextWord(), 500);
+                    }
+                });
+            }
+        }, { once: true });
+        
+        playlistAudio.addEventListener('ended', function onEnd() {
+            playlistAudio.removeEventListener('ended', onEnd);
+            
+            audioPlaying = false;
+            
             const pauseDuration = parseInt(document.getElementById('pause-duration').value) * 1000;
             
             if (isPlaying) {
-                if (pauseDuration > 0) {
-                    playlistTimeout = setTimeout(() => {
-                        nextWord();
-                    }, pauseDuration);
-                } else {
-                    // Kleine Verzögerung auch bei "Keine"
-                    playlistTimeout = setTimeout(() => {
-                        nextWord();
-                    }, 100);
-                }
+                const actualPause = Math.max(pauseDuration, 300);
+                
+                playlistTimeout = setTimeout(() => {
+                    nextWord();
+                }, actualPause);
             }
-        };
+        }, { once: true });
         
-        // FIX 2: Fehlerbehandlung
-        playlistAudio.onerror = (error) => {
-            console.error('Audio-Fehler:', error);
+        playlistAudio.addEventListener('error', function onError(e) {
+            console.error('Audio-Fehler:', e);
+            playlistAudio.removeEventListener('error', onError);
+            
+            audioPlaying = false;
+            
             if (isPlaying) {
                 setTimeout(() => nextWord(), 500);
             }
-        };
+        }, { once: true });
         
-        playlistAudio.play().catch(err => {
-            console.error('Play-Fehler:', err);
-            if (isPlaying) {
-                setTimeout(() => nextWord(), 500);
-            }
-        });
-    } else {
+    } catch (error) {
+        console.error('Fehler beim Erstellen des Audios:', error);
+        audioPlaying = false;
         if (isPlaying) {
             setTimeout(() => nextWord(), 500);
         }
@@ -810,7 +848,7 @@ function togglePlayPause() {
         btn.textContent = '⏸️';
         btn.classList.add('playing');
         
-        playCurrentAudio();
+        playCurrentAudioNew();
     }
 }
 
@@ -833,8 +871,15 @@ function nextWord() {
 }
 
 function stopCurrentPlayback() {
+    audioPlaying = false;
+    
     if (playlistAudio) {
-        playlistAudio.pause();
+        try {
+            playlistAudio.pause();
+            playlistAudio.currentTime = 0;
+            playlistAudio.src = '';
+        } catch (e) {
+        }
         playlistAudio = null;
     }
     
@@ -879,7 +924,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Globale Funktionen für onclick-Handler
 window.playWordAudio = playWordAudio;
 window.deleteWord = deleteWord;
 window.addTagToInput = addTagToInput;
